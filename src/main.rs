@@ -55,7 +55,7 @@ fn main() {
     let mut rng = rand::thread_rng();
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
     let mut window = Window::new(
-        "maze snake (arrow keys to move, space to restart, z to pause, exc to exit)",
+        "maze snake (arrow keys to move, space to restart, z to pause, esc to exit)",
         WIDTH,
         HEIGHT,
         WindowOptions {
@@ -311,7 +311,7 @@ fn main() {
         if pause || gameover {
             window.set_title(
                 format!(
-                    "Maze Snake | Score: {} | (arrow keys to move, space to restart, z to pause, exc to exit)", score
+                    "Maze Snake | Score: {} | (arrow keys to move, space to restart, z to pause, esc to exit)", score
                 )
                 .as_str(),
             );
