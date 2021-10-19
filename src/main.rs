@@ -7,7 +7,8 @@ use std::time::{Duration, Instant};
 
 const WIDTH: usize = 64;
 const HEIGHT: usize = 48;
-const MAZECOLOR: u32 = 200 << 16 | 200 << 8 | 200 << 0;
+const MAZECOLOR: u32 = 150 << 16 | 150 << 8 | 150 << 0;
+const WALLCOLOR: u32 = 200 << 16 | 200 << 8 | 200 << 0;
 const SNAKEBODYCOLOR: u32 = 0 << 16 | 100 << 8 | 0 << 0;
 const SNAKEHEADCOLOR: u32 = 0 << 16 | 200 << 8 | 0 << 0;
 // const RED: u32 = 255 << 16 | 0 << 8 | 0 << 0;
@@ -72,7 +73,8 @@ fn main() {
     let mut setup: bool = true;
     let mut snake: Vec<[i16; 2]> = Vec::new();
     let mut direction: [i16; 2] = [0, 0];
-    let mut maze: [bool; WIDTH * HEIGHT] = generate_maze();
+    let wall: Vec<[i16; 2]> = generate_wall();
+    let mut maze: Vec<[i16; 2]> = Vec::new();
     let mut framecount: i16 = 0;
     let mut movemade = false;
     let mut gameover = false;
@@ -82,6 +84,7 @@ fn main() {
     let mut fuck = false;
     let mut score: u32 = 2;
     let mut multiplier: u32 = 0;
+    let mut charges: u32 = 0;
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let mut now = Instant::now();
         if setup {
@@ -95,7 +98,7 @@ fn main() {
                         rng.gen_range(0..WIDTH) as i16,
                         rng.gen_range(0..HEIGHT) as i16,
                     ];
-                    if !maze[xy_to_index(newpos)] {
+                    if !wall.contains(&newpos) {
                         valid = true;
                     }
                 }
@@ -117,16 +120,16 @@ fn main() {
                             mask[1] = -1;
                         }
                     }
-                    if !maze[xy_to_index([snake[0][0] + mask[0], snake[0][1] + mask[1]])] {
+                    if !wall.contains(&[snake[0][0] + mask[0], snake[0][1] + mask[1]]) {
                         valid = true;
                     }
                 }
                 snake.push([newpos[0] + mask[0], newpos[1] + mask[1]]);
-                direction = [mask[0] * -1, mask[1] * -1];
-                if !maze[xy_to_index([
+                direction = [-mask[0], -mask[1]];
+                if !wall.contains(&[
                     snake[snake.len() - 1][0] + (direction[0] * -1),
                     snake[snake.len() - 1][1] + (direction[1] * -1),
-                ])] {
+                ]) {
                     metavalid = true;
                 }
             }
@@ -137,7 +140,7 @@ fn main() {
                     rng.gen_range(0..WIDTH) as i16,
                     rng.gen_range(0..HEIGHT) as i16,
                 ];
-                if !(maze[xy_to_index(newpos)] || snake.contains(&newpos)) {
+                if !(maze.contains(&newpos) || snake.contains(&newpos) || wall.contains(&newpos)) {
                     valid = true;
                 }
             }
@@ -200,7 +203,15 @@ fn main() {
                 ];
                 let mut nextsnake = snake.clone();
                 nextsnake.drain(0..1);
-                if nextsnake.contains(&newpos) || maze[xy_to_index(newpos)] {
+                if maze.contains(&newpos) && charges > 0 {
+                    maze.remove(maze.iter().position(|&r| r == newpos).unwrap());
+                    charges -= 1;
+                    snake.drain(0..1);
+                    score -= 1;
+                } else if nextsnake.contains(&newpos)
+                    || maze.contains(&newpos)
+                    || wall.contains(&newpos)
+                {
                     gameover = true;
                     pause = true;
                 } else {
@@ -211,17 +222,19 @@ fn main() {
                             sound = sounds.len() as u32 - 1;
                         }
                         sl.play(&sounds[sound as usize]);
-                        maze[xy_to_index(apple)] = true;
+                        maze.push(apple);
                         skip += 2u32.pow(multiplier + 1) - 1;
                         let mut valid = false;
                         let mut newpos: [i16; 2] = [0i16, 0i16];
-                        score += 2u32.pow(multiplier + 1) - 1;
                         while !valid {
                             newpos = [
                                 rng.gen_range(0..WIDTH) as i16,
                                 rng.gen_range(0..HEIGHT) as i16,
                             ];
-                            if !(maze[xy_to_index(newpos)] || snake.contains(&newpos)) {
+                            if !(maze.contains(&newpos)
+                                || snake.contains(&newpos)
+                                || wall.contains(&newpos))
+                            {
                                 valid = true;
                             }
                         }
@@ -232,10 +245,16 @@ fn main() {
                             snake[snake.len() - 1][0] + (direction[0] * -1),
                             snake[snake.len() - 1][1] + (direction[1] * -1),
                         ]);
-                        if skip > 0 || gameover {
-                            skip -= 1;
-                        } else {
-                            snake.drain(0..1);
+                        if !gameover {
+                            if skip > 0 {
+                                if skip > 1 {
+                                    charges += 1;
+                                }
+                                skip -= 1;
+                                score += 1;
+                            } else {
+                                snake.drain(0..1);
+                            }
                         }
                     }
                 }
@@ -243,21 +262,24 @@ fn main() {
             for (i, v) in snake.iter().enumerate() {
                 if i == snake.len() - 1 {
                     buffer[xy_to_index(*v)] = SNAKEHEADCOLOR;
+                } else if i < charges as usize {
+                    buffer[xy_to_index(*v)] = LIGHTRED;
                 } else {
                     buffer[xy_to_index(*v)] = SNAKEBODYCOLOR;
                 }
             }
             let lastcount = multiplier;
             multiplier = 0;
-            for (i, v) in maze.iter().enumerate() {
-                if *v {
-                    if !snake.contains(&index_to_xy(i)) {
-                        buffer[i] = MAZECOLOR;
-                    } else {
-                        buffer[i] = POOP;
-                        multiplier += 1;
-                    }
+            for v in maze.iter() {
+                if !snake.contains(v) {
+                    buffer[xy_to_index(*v)] = MAZECOLOR;
+                } else {
+                    buffer[xy_to_index(*v)] = POOP;
+                    multiplier += 1;
                 }
+            }
+            for v in wall.iter() {
+                buffer[xy_to_index(*v)] = WALLCOLOR;
             }
             if multiplier < lastcount {
                 sl.play(&poop);
@@ -291,19 +313,21 @@ fn main() {
             }
         }
         if window.is_key_down(Key::Space) && !fuck {
+            fuck = true;
+
             setup = true;
             snake = Vec::new();
             direction = [0, 0];
-            maze = generate_maze();
+            maze = Vec::new();
             framecount = 0;
             movemade = false;
             gameover = false;
             apple = [0i16, 0i16];
             skip = 0;
             pause = true;
-            fuck = true;
             score = 2;
             multiplier = 0;
+            charges = 0;
         } else if !window.is_key_down(Key::Space) {
             fuck = false;
         }
@@ -327,22 +351,15 @@ fn xy_to_index(xy: [i16; 2]) -> usize {
     xy[0] as usize + (xy[1] as usize * WIDTH)
 }
 
-fn index_to_xy(i: usize) -> [i16; 2] {
-    [
-        i as i16 % WIDTH as i16,
-        (i as i16 - (i as i16 % WIDTH as i16)) / WIDTH as i16,
-    ]
-}
-
-fn generate_maze() -> [bool; WIDTH * HEIGHT] {
-    let mut x: [bool; WIDTH * HEIGHT] = [false; WIDTH * HEIGHT];
+fn generate_wall() -> Vec<[i16; 2]> {
+    let mut x: Vec<[i16; 2]> = Vec::new();
     for i in 0..WIDTH {
-        x[xy_to_index([i as i16, 0])] = true;
-        x[xy_to_index([i as i16, HEIGHT as i16 - 1])] = true;
+        x.push([i as i16, 0]);
+        x.push([i as i16, HEIGHT as i16 - 1]);
     }
     for i in 0..HEIGHT {
-        x[xy_to_index([0, i as i16])] = true;
-        x[xy_to_index([WIDTH as i16 - 1, i as i16])] = true;
+        x.push([0, i as i16]);
+        x.push([WIDTH as i16 - 1, i as i16]);
     }
     x
 }
