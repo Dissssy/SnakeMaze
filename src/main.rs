@@ -184,57 +184,59 @@ fn main() {
             }
         }
         if framecount == 0 && !gameover {
-            if !SHHH {
-                println!("keylogic took {}", now.elapsed().as_secs_f64())
-            }
-            now = Instant::now();
-            movemade = false;
-            buffer.par_iter_mut().for_each(|v| *v = 0u32);
-            if !SHHH {
-                println!("{:?}", direction)
-            }
-            let newpos = [
-                snake[snake.len() - 1][0] + (direction[0] * -1),
-                snake[snake.len() - 1][1] + (direction[1] * -1),
-            ];
-            let mut nextsnake = snake.clone();
-            nextsnake.drain(0..1);
-            if nextsnake.contains(&newpos) || maze[xy_to_index(newpos)] {
-                gameover = true;
-                pause = true;
-            } else {
-                if apple == newpos {
-                    let mut sound = multiplier;
-                    if sound >= sounds.len() as u32 {
-                        println!("{}", sound);
-                        sound = sounds.len() as u32 - 1;
-                    }
-                    sl.play(&sounds[sound as usize]);
-                    maze[xy_to_index(apple)] = true;
-                    skip += 2u32.pow(multiplier + 1) - 1;
-                    let mut valid = false;
-                    let mut newpos: [i16; 2] = [0i16, 0i16];
-                    score += 2u32.pow(multiplier + 1) - 1;
-                    while !valid {
-                        newpos = [
-                            rng.gen_range(0..WIDTH) as i16,
-                            rng.gen_range(0..HEIGHT) as i16,
-                        ];
-                        if !(maze[xy_to_index(newpos)] || snake.contains(&newpos)) {
-                            valid = true;
-                        }
-                    }
-                    apple = newpos;
+            if !pause {
+                if !SHHH {
+                    println!("keylogic took {}", now.elapsed().as_secs_f64())
                 }
-                if !pause {
-                    snake.push([
-                        snake[snake.len() - 1][0] + (direction[0] * -1),
-                        snake[snake.len() - 1][1] + (direction[1] * -1),
-                    ]);
-                    if skip > 0 || gameover {
-                        skip -= 1;
-                    } else {
-                        snake.drain(0..1);
+                now = Instant::now();
+                movemade = false;
+                buffer.par_iter_mut().for_each(|v| *v = 0u32);
+                if !SHHH {
+                    println!("{:?}", direction)
+                }
+                let newpos = [
+                    snake[snake.len() - 1][0] + (direction[0] * -1),
+                    snake[snake.len() - 1][1] + (direction[1] * -1),
+                ];
+                let mut nextsnake = snake.clone();
+                nextsnake.drain(0..1);
+                if nextsnake.contains(&newpos) || maze[xy_to_index(newpos)] {
+                    gameover = true;
+                    pause = true;
+                } else {
+                    if apple == newpos {
+                        let mut sound = multiplier;
+                        if sound >= sounds.len() as u32 {
+                            println!("{}", sound);
+                            sound = sounds.len() as u32 - 1;
+                        }
+                        sl.play(&sounds[sound as usize]);
+                        maze[xy_to_index(apple)] = true;
+                        skip += 2u32.pow(multiplier + 1) - 1;
+                        let mut valid = false;
+                        let mut newpos: [i16; 2] = [0i16, 0i16];
+                        score += 2u32.pow(multiplier + 1) - 1;
+                        while !valid {
+                            newpos = [
+                                rng.gen_range(0..WIDTH) as i16,
+                                rng.gen_range(0..HEIGHT) as i16,
+                            ];
+                            if !(maze[xy_to_index(newpos)] || snake.contains(&newpos)) {
+                                valid = true;
+                            }
+                        }
+                        apple = newpos;
+                    }
+                    if !pause {
+                        snake.push([
+                            snake[snake.len() - 1][0] + (direction[0] * -1),
+                            snake[snake.len() - 1][1] + (direction[1] * -1),
+                        ]);
+                        if skip > 0 || gameover {
+                            skip -= 1;
+                        } else {
+                            snake.drain(0..1);
+                        }
                     }
                 }
             }
