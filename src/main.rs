@@ -184,13 +184,13 @@ fn main() {
             }
         }
         if framecount == 0 && !gameover {
+            buffer.par_iter_mut().for_each(|v| *v = 0u32);
             if !pause {
                 if !SHHH {
                     println!("keylogic took {}", now.elapsed().as_secs_f64())
                 }
                 now = Instant::now();
                 movemade = false;
-                buffer.par_iter_mut().for_each(|v| *v = 0u32);
                 if !SHHH {
                     println!("{:?}", direction)
                 }
