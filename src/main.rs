@@ -113,12 +113,10 @@ fn main() {
                         } else {
                             mask[0] = -1;
                         }
+                    } else if rng.gen::<bool>() {
+                        mask[1] = 1;
                     } else {
-                        if rng.gen::<bool>() {
-                            mask[1] = 1;
-                        } else {
-                            mask[1] = -1;
-                        }
+                        mask[1] = -1;
                     }
                     if !wall.contains(&[snake[0][0] + mask[0], snake[0][1] + mask[1]]) {
                         valid = true;
@@ -127,8 +125,8 @@ fn main() {
                 snake.push([newpos[0] + mask[0], newpos[1] + mask[1]]);
                 direction = [-mask[0], -mask[1]];
                 if !wall.contains(&[
-                    snake[snake.len() - 1][0] + (direction[0] * -1),
-                    snake[snake.len() - 1][1] + (direction[1] * -1),
+                    snake[snake.len() - 1][0] + -direction[0],
+                    snake[snake.len() - 1][1] + -direction[1],
                 ]) {
                     metavalid = true;
                 }
@@ -198,8 +196,8 @@ fn main() {
                     println!("{:?}", direction)
                 }
                 let newpos = [
-                    snake[snake.len() - 1][0] + (direction[0] * -1),
-                    snake[snake.len() - 1][1] + (direction[1] * -1),
+                    snake[snake.len() - 1][0] + -direction[0],
+                    snake[snake.len() - 1][1] + -direction[1],
                 ];
                 let mut nextsnake = snake.clone();
                 nextsnake.drain(0..1);
@@ -242,8 +240,8 @@ fn main() {
                     }
                     if !pause {
                         snake.push([
-                            snake[snake.len() - 1][0] + (direction[0] * -1),
-                            snake[snake.len() - 1][1] + (direction[1] * -1),
+                            snake[snake.len() - 1][0] + -direction[0],
+                            snake[snake.len() - 1][1] + -direction[1],
                         ]);
                         if !gameover {
                             if skip > 0 {
@@ -303,14 +301,13 @@ fn main() {
             thread::sleep(delta);
         }
         framecount = (framecount + 1) % DELTA;
-        if pause {
-            if window.is_key_down(Key::Up)
+        if pause
+            && (window.is_key_down(Key::Up)
                 || window.is_key_down(Key::Down)
                 || window.is_key_down(Key::Left)
-                || window.is_key_down(Key::Right)
-            {
-                pause = false;
-            }
+                || window.is_key_down(Key::Right))
+        {
+            pause = false;
         }
         if window.is_key_down(Key::Space) && !fuck {
             fuck = true;
