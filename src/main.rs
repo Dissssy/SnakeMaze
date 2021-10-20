@@ -5,54 +5,68 @@ use soloud::*;
 use std::thread;
 use std::time::{Duration, Instant};
 
-const WIDTH: usize = 64;
-const HEIGHT: usize = 48;
+const WIDTH: usize = 16;
+const HEIGHT: usize = 16;
 const MAZECOLOR: u32 = 150 << 16 | 150 << 8 | 150 << 0;
 const WALLCOLOR: u32 = 200 << 16 | 200 << 8 | 200 << 0;
-const SNAKEBODYCOLOR: u32 = 0 << 16 | 100 << 8 | 0 << 0;
-const SNAKEHEADCOLOR: u32 = 0 << 16 | 200 << 8 | 0 << 0;
+const SNAKEBODYCOLOR: u32 = 0 << 16 | 63 << 8 | 0 << 0;
 // const RED: u32 = 255 << 16 | 0 << 8 | 0 << 0;
 const RED: u32 = (127 + 63) << 16 | 0 << 8 | 0 << 0;
 const LIGHTRED: u32 = 63 << 16 | 0 << 8 | 0 << 0;
-const POOP: u32 = 165 << 16 | 42 << 8 | 42 << 0;
-const DELTA: i16 = 10;
+// const POOP: u32 = 165 << 16 | 42 << 8 | 42 << 0;
+// const POOP: u32 = 212 << 16 | 175 << 8 | 55 << 0;
+const POOP: u32 = 0 << 16 | 0 << 8 | 127 << 0;
+const DELTA: i16 = 20;
 const FRAMETIMEMS: u128 = 120;
 const SHHH: bool = true;
 
 fn main() {
-    let mut sounds = Vec::new();
     let sl = Soloud::default().unwrap();
+    let mut eatsounds = Vec::new();
     let mut s = audio::Wav::default();
     s.load_mem(include_bytes!("./resources/eat.wav").to_vec())
         .unwrap();
-    sounds.push(s);
+    eatsounds.push(s);
     let mut s = audio::Wav::default();
     s.load_mem(include_bytes!("./resources/1.wav").to_vec())
         .unwrap();
-    sounds.push(s);
+    eatsounds.push(s);
     let mut s = audio::Wav::default();
     s.load_mem(include_bytes!("./resources/2.wav").to_vec())
         .unwrap();
-    sounds.push(s);
+    eatsounds.push(s);
     let mut s = audio::Wav::default();
     s.load_mem(include_bytes!("./resources/3.wav").to_vec())
         .unwrap();
-    sounds.push(s);
+    eatsounds.push(s);
     let mut s = audio::Wav::default();
     s.load_mem(include_bytes!("./resources/4.wav").to_vec())
         .unwrap();
-    sounds.push(s);
+    eatsounds.push(s);
     let mut s = audio::Wav::default();
     s.load_mem(include_bytes!("./resources/5.wav").to_vec())
         .unwrap();
-    sounds.push(s);
+    eatsounds.push(s);
     let mut s = audio::Wav::default();
     s.load_mem(include_bytes!("./resources/6.wav").to_vec())
         .unwrap();
-    sounds.push(s);
+    eatsounds.push(s);
     let mut poop = audio::Wav::default();
     poop.load_mem(include_bytes!("./resources/poop.wav").to_vec())
         .unwrap();
+    let mut breaksounds = Vec::new();
+    let mut s = audio::Wav::default();
+    s.load_mem(include_bytes!("./resources/break1.wav").to_vec())
+        .unwrap();
+    breaksounds.push(s);
+    let mut s = audio::Wav::default();
+    s.load_mem(include_bytes!("./resources/break2.wav").to_vec())
+        .unwrap();
+    breaksounds.push(s);
+    let mut s = audio::Wav::default();
+    s.load_mem(include_bytes!("./resources/break3.wav").to_vec())
+        .unwrap();
+    breaksounds.push(s);
     let mut rng = rand::thread_rng();
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
     let mut window = Window::new(
@@ -103,27 +117,29 @@ fn main() {
                     }
                 }
                 snake.push(newpos);
-                valid = false;
-                let mut mask = [0i16, 0i16];
-                while !valid {
-                    mask = [0i16, 0i16];
-                    if rng.gen::<bool>() {
-                        if rng.gen::<bool>() {
-                            mask[0] = 1;
-                        } else {
-                            mask[0] = -1;
-                        }
-                    } else if rng.gen::<bool>() {
-                        mask[1] = 1;
-                    } else {
-                        mask[1] = -1;
-                    }
-                    if !wall.contains(&[snake[0][0] + mask[0], snake[0][1] + mask[1]]) {
-                        valid = true;
-                    }
-                }
-                snake.push([newpos[0] + mask[0], newpos[1] + mask[1]]);
-                direction = [-mask[0], -mask[1]];
+                snake.push(newpos);
+                // valid = false;
+                // let mut mask = [0i16, 0i16];
+                // while !valid {
+                //     mask = [0i16, 0i16];
+                //     if rng.gen::<bool>() {
+                //         if rng.gen::<bool>() {
+                //             mask[0] = 1;
+                //         } else {
+                //             mask[0] = -1;
+                //         }
+                //     } else if rng.gen::<bool>() {
+                //         mask[1] = 1;
+                //     } else {
+                //         mask[1] = -1;
+                //     }
+                //     if !wall.contains(&[snake[0][0] + mask[0], snake[0][1] + mask[1]]) {
+                //         valid = true;
+                //     }
+                // }
+                // snake.push([newpos[0] + mask[0], newpos[1] + mask[1]]);
+                // direction = [-mask[0], -mask[1]];
+                direction = [0, 0];
                 if !wall.contains(&[
                     snake[snake.len() - 1][0] + -direction[0],
                     snake[snake.len() - 1][1] + -direction[1],
@@ -151,36 +167,63 @@ fn main() {
         }
         let timedelta = Instant::now();
         window.update();
-        if !movemade {
-            if direction[0] != 0 {
-                if window.is_key_down(Key::Up) {
-                    direction = [0, 1];
-                    movemade = true;
-                    if !SHHH {
-                        println!("{:?}", direction)
-                    }
+        if direction == [0, 0] {
+            if window.is_key_down(Key::Up) && !movemade {
+                direction = [0, 1];
+                movemade = true;
+                if !SHHH {
+                    println!("{:?}", direction)
                 }
-                if window.is_key_down(Key::Down) {
-                    direction = [0, -1];
-                    movemade = true;
-                    if !SHHH {
-                        println!("{:?}", direction)
-                    }
+            }
+            if window.is_key_down(Key::Down) && !movemade {
+                direction = [0, -1];
+                movemade = true;
+                if !SHHH {
+                    println!("{:?}", direction)
                 }
-            } else {
-                if window.is_key_down(Key::Left) {
-                    direction = [1, 0];
-                    movemade = true;
-                    if !SHHH {
-                        println!("{:?}", direction)
-                    }
+            }
+            if window.is_key_down(Key::Left) && !movemade {
+                direction = [1, 0];
+                movemade = true;
+                if !SHHH {
+                    println!("{:?}", direction)
                 }
-                if window.is_key_down(Key::Right) {
-                    direction = [-1, 0];
-                    movemade = true;
-                    if !SHHH {
-                        println!("{:?}", direction)
-                    }
+            }
+            if window.is_key_down(Key::Right) && !movemade {
+                direction = [-1, 0];
+                movemade = true;
+                if !SHHH {
+                    println!("{:?}", direction)
+                }
+            }
+        } else if direction[0] != 0 && !movemade {
+            if window.is_key_down(Key::Up) && !movemade {
+                direction = [0, 1];
+                movemade = true;
+                if !SHHH {
+                    println!("{:?}", direction)
+                }
+            }
+            if window.is_key_down(Key::Down) && !movemade {
+                direction = [0, -1];
+                movemade = true;
+                if !SHHH {
+                    println!("{:?}", direction)
+                }
+            }
+        } else {
+            if window.is_key_down(Key::Left) && !movemade {
+                direction = [1, 0];
+                movemade = true;
+                if !SHHH {
+                    println!("{:?}", direction)
+                }
+            }
+            if window.is_key_down(Key::Right) && !movemade {
+                direction = [-1, 0];
+                movemade = true;
+                if !SHHH {
+                    println!("{:?}", direction)
                 }
             }
         }
@@ -201,48 +244,47 @@ fn main() {
                 ];
                 let mut nextsnake = snake.clone();
                 nextsnake.drain(0..1);
-                if maze.contains(&newpos) && charges > 0 {
-                    maze.remove(maze.iter().position(|&r| r == newpos).unwrap());
-                    charges -= 1;
-                    snake.drain(0..1);
-                    score -= 1;
-                } else if nextsnake.contains(&newpos)
-                    || maze.contains(&newpos)
+                let remove: bool = maze.contains(&newpos) && charges > 0;
+                if nextsnake.contains(&newpos)
                     || wall.contains(&newpos)
+                    || (maze.contains(&newpos) && charges == 0)
                 {
                     gameover = true;
                     pause = true;
                 } else {
                     if apple == newpos {
                         let mut sound = multiplier;
-                        if sound >= sounds.len() as u32 {
+                        if sound >= eatsounds.len() as u32 {
                             println!("{}", sound);
-                            sound = sounds.len() as u32 - 1;
+                            sound = eatsounds.len() as u32 - 1;
                         }
-                        sl.play(&sounds[sound as usize]);
+                        sl.play(&eatsounds[sound as usize]);
                         maze.push(apple);
                         skip += 2u32.pow(multiplier + 1) - 1;
                         let mut valid = false;
-                        let mut newpos: [i16; 2] = [0i16, 0i16];
+                        let mut newapple: [i16; 2] = [0i16, 0i16];
                         while !valid {
-                            newpos = [
+                            newapple = [
                                 rng.gen_range(0..WIDTH) as i16,
                                 rng.gen_range(0..HEIGHT) as i16,
                             ];
-                            if !(maze.contains(&newpos)
-                                || snake.contains(&newpos)
-                                || wall.contains(&newpos))
+                            if !(maze.contains(&newapple)
+                                || snake.contains(&newapple)
+                                || wall.contains(&newapple))
                             {
                                 valid = true;
                             }
                         }
-                        apple = newpos;
+                        apple = newapple;
                     }
                     if !pause {
-                        snake.push([
-                            snake[snake.len() - 1][0] + -direction[0],
-                            snake[snake.len() - 1][1] + -direction[1],
-                        ]);
+                        if remove {
+                            maze.remove(maze.iter().position(|&r| r == newpos).unwrap());
+                            charges -= 1;
+                            score -= 1;
+                            sl.play(&breaksounds[rng.gen_range(0..breaksounds.len())]);
+                        }
+                        snake.push(newpos);
                         if !gameover {
                             if skip > 0 {
                                 if skip > 1 {
@@ -258,12 +300,17 @@ fn main() {
                 }
             }
             for (i, v) in snake.iter().enumerate() {
-                if i == snake.len() - 1 {
-                    buffer[xy_to_index(*v)] = SNAKEHEADCOLOR;
-                } else if i < charges as usize {
-                    buffer[xy_to_index(*v)] = LIGHTRED;
+                if i < charges as usize {
+                    for _ in 0..(3 - ((snake.len() - 1 - i) % 3)) {
+                        buffer[xy_to_index(*v)] += LIGHTRED;
+                    }
                 } else {
-                    buffer[xy_to_index(*v)] = SNAKEBODYCOLOR;
+                    if i == snake.len() - 1 {
+                        buffer[xy_to_index(*v)] += SNAKEBODYCOLOR;
+                    }
+                    for _ in 0..(3 - ((snake.len() - 1 - i) % 3)) {
+                        buffer[xy_to_index(*v)] += SNAKEBODYCOLOR;
+                    }
                 }
             }
             let lastcount = multiplier;
@@ -272,7 +319,7 @@ fn main() {
                 if !snake.contains(v) {
                     buffer[xy_to_index(*v)] = MAZECOLOR;
                 } else {
-                    buffer[xy_to_index(*v)] = POOP;
+                    buffer[xy_to_index(*v)] += POOP;
                     multiplier += 1;
                 }
             }
